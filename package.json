@@ -1,0 +1,12 @@
+{
+  "name": "claude-code-server",
+  "version": "1.0.0",
+  "description": "HTTP wrapper around Claude Code CLI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "fastify": "^5.2.0"
+  }
+}

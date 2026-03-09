@@ -1,0 +1,80 @@
+name: Build and Push Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/billyboy06/claude-code-server
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Update GitOps chart image tag
+        env:
+          CHARTS_REPO_TOKEN: ${{ secrets.CHARTS_REPO_TOKEN }}
+          CHARTS_REPO: billyboy06/k3s-media-charts
+          CHARTS_REPO_BRANCH: main
+          IMAGE_TAG: sha-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CHARTS_REPO_TOKEN" ]; then
+            echo "Missing CHARTS_REPO_TOKEN secret."
+            exit 1
+          fi
+          APP_VALUES_PATH="worker-apps/claude-code/values-production.yaml"
+          git clone https://x-access-token:${CHARTS_REPO_TOKEN}@github.com/${CHARTS_REPO}.git charts-repo
+          cd charts-repo
+          git checkout "${CHARTS_REPO_BRANCH}"
+          yq -i ".image.tag = \"${IMAGE_TAG}\"" "$APP_VALUES_PATH"
+          if git diff --quiet; then
+            echo "No chart updates needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          MAX_RETRIES=3
+          for i in $(seq 1 $MAX_RETRIES); do
+            git add "$APP_VALUES_PATH"
+            git commit -m "chore: update claude-code-server image to ${IMAGE_TAG}"
+            if git push; then
+              echo "Chart updated successfully."
+              exit 0
+            fi
+            echo "Push failed, retrying ($i/$MAX_RETRIES)..."
+            git pull --rebase
+          done
+          echo "Failed to push after $MAX_RETRIES retries."
+          exit 1
