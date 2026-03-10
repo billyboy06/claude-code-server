@@ -182,6 +182,53 @@ curl -X POST http://localhost:3000/ask \
 | `CONFIG_DIR` | `/home/node/.claude` | Config files directory |
 | `WORKSPACE_DIR` | `/workspace` | Workspace root (cwd is restricted to this) |
 
+### Claude Code credentials
+
+The server spawns the `claude` CLI as a child process. The CLI needs valid Anthropic credentials to work. There are two ways to set this up:
+
+**Option 1 — Environment variable (simplest)**
+
+Pass your Anthropic API key as an environment variable. The server forwards it to the CLI process automatically:
+
+```bash
+docker run -d \
+  -e API_KEY=your-server-api-key \
+  -e ANTHROPIC_API_KEY=sk-ant-... \
+  -p 3000:3000 \
+  ghcr.io/billyboy06/claude-code-server:latest
+```
+
+**Option 2 — Claude CLI config (persistent, recommended for Kubernetes)**
+
+Run `claude` interactively once to authenticate, then mount the resulting config directory. The CLI stores its credentials in `~/.claude/`:
+
+```bash
+# 1. Authenticate locally
+npm install -g @anthropic-ai/claude-code
+claude  # follow the interactive login flow
+
+# 2. Mount the config into the container
+docker run -d \
+  -e API_KEY=your-server-api-key \
+  -v ~/.claude:/home/node/.claude \
+  -p 3000:3000 \
+  ghcr.io/billyboy06/claude-code-server:latest
+```
+
+On Kubernetes, use a PVC mounted at `/home/node/.claude` to persist the credentials across restarts. This also stores the configuration files managed by the `/config/*` API.
+
+**Which option to choose?**
+
+| | Env var | CLI config |
+|---|---------|-----------|
+| Setup | One-liner | Interactive login once |
+| Auth type | API key only | API key, OAuth, or Anthropic account |
+| Plans | Works with any plan that provides API access | Works with Pro/Max subscriptions (no per-token cost) |
+| Persistence | Stateless, pass on every start | Persisted in volume, survives restarts |
+| Best for | CI/CD, ephemeral containers | Long-running servers, Kubernetes |
+
+> **Pro/Max subscription tip:** If you use Claude Pro ($20/mo) or Max ($100/mo), authenticate via Option 2. The CLI uses your subscription directly — no per-token API charges. This is the most cost-effective setup for teams.
+
 ## Security
 
 - **Timing-safe** API key comparison (`crypto.timingSafeEqual`)
