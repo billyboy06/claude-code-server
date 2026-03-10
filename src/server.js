@@ -9,12 +9,6 @@ if (!API_KEY) {
   process.exit(1);
 }
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-if (!ANTHROPIC_API_KEY) {
-  console.error('ANTHROPIC_API_KEY environment variable is required');
-  process.exit(1);
-}
-
 const MAX_CONCURRENT = parseInt(process.env.MAX_CONCURRENT, 10) || 3;
 const QUEUE_TIMEOUT = parseInt(process.env.QUEUE_TIMEOUT, 10) || 30_000;
 
