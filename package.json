@@ -1,10 +1,30 @@
 {
   "name": "claude-code-server",
   "version": "0.2.0",
-  "description": "HTTP wrapper around Claude Code CLI",
+  "description": "Production-ready HTTP API for Claude Code CLI with streaming, config management, and bounded concurrency",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "anthropic",
+    "ai",
+    "llm",
+    "api-server",
+    "fastify",
+    "sse",
+    "streaming"
+  ],
+  "author": "Matthieu Fossat",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/billyboy06/claude-code-server.git"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.2",
