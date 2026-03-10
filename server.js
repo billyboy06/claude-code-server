@@ -59,7 +59,7 @@ function runClaude({ prompt, allowedTools, maxTurns, cwd }) {
 
     const proc = spawn('claude', args, {
       cwd: cwd || '/workspace',
-      env: { ...process.env, HOME: '/home/claude' },
+      env: { ...process.env },
       timeout: 290_000,
     });
 
