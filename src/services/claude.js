@@ -12,6 +12,7 @@ function buildSafeEnv() {
   };
   // Pass through if set (may also come from claude config in HOME)
   if (process.env.ANTHROPIC_API_KEY) env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+  if (process.env.ANTHROPIC_AUTH_TOKEN) env.ANTHROPIC_AUTH_TOKEN = process.env.ANTHROPIC_AUTH_TOKEN;
   return env;
 }
 
