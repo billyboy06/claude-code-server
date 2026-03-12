@@ -24,7 +24,7 @@ function buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model,
     throw new Error('prompt is required and must be a string');
   }
 
-  const args = ['-p', '--output-format', stream ? 'stream-json' : 'json'];
+  const args = ['-p', '--output-format', stream ? 'stream-json' : 'json', '--dangerously-skip-permissions'];
 
   if (resume) args.push('--resume', resume);
   if (maxTurns) args.push('--max-turns', String(maxTurns));
