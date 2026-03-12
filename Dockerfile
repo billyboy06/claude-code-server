@@ -4,8 +4,9 @@ RUN npm install -g @anthropic-ai/claude-code
 
 ENV HOME=/home/node
 
-RUN mkdir -p /home/node/.claude/agents /home/node/.claude/skills /home/node/.claude/rules \
-    && chown -R node:node /home/node
+RUN mkdir -p /home/node/.claude/agents /home/node/.claude/skills /home/node/.claude/rules /home/node/.claude/hooks \
+    /workspace \
+    && chown -R node:node /home/node /workspace
 
 WORKDIR /app
 COPY package.json package-lock.json ./
