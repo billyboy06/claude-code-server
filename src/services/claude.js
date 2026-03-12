@@ -5,15 +5,10 @@ const { spawn } = require('node:child_process');
 const MAX_STDERR = 10_000; // 10KB cap
 
 function buildSafeEnv() {
-  const env = {
-    PATH: process.env.PATH,
-    HOME: process.env.HOME,
-    NODE_ENV: process.env.NODE_ENV,
-  };
-  // Pass through if set (may also come from claude config in HOME)
-  if (process.env.ANTHROPIC_API_KEY) env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-  if (process.env.ANTHROPIC_AUTH_TOKEN) env.ANTHROPIC_AUTH_TOKEN = process.env.ANTHROPIC_AUTH_TOKEN;
-  return env;
+  // Inherit full environment — Claude CLI needs access to OAuth credentials
+  // stored under $HOME/.claude/ and may require env vars for auth flows.
+  // The CLI runs in a sandboxed workspace with permission controls.
+  return { ...process.env };
 }
 
 const SAFE_ENV = buildSafeEnv();
