@@ -54,23 +54,20 @@ function runClaude({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, m
     const proc = spawn('claude', args, {
       cwd: cwd || '/workspace',
       env: SAFE_ENV,
+      stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 290_000,
     });
+
+    // Close stdin immediately — Claude CLI blocks on open stdin
+    proc.stdin.end();
 
     let stdout = '';
     let stderr = '';
 
-    proc.stdout.on('data', (data) => {
-      stdout += data;
-      fastify?.log?.debug?.({ chunk: data.toString().slice(0, 200) }, 'claude stdout');
-    });
-    proc.stderr.on('data', (data) => {
-      stderr = capStderr(stderr, data);
-      fastify?.log?.warn?.({ chunk: data.toString().slice(0, 500) }, 'claude stderr');
-    });
+    proc.stdout.on('data', (data) => { stdout += data; });
+    proc.stderr.on('data', (data) => { stderr = capStderr(stderr, data); });
 
     proc.on('close', (code) => {
-      fastify?.log?.info?.({ code, stdoutLen: stdout.length, stderrLen: stderr.length }, 'claude process closed');
       if (code !== 0) {
         reject(new Error(`claude exited with code ${code}: ${stderr}`));
         return;
@@ -94,7 +91,11 @@ function runClaudeStream({ prompt, allowedTools, maxTurns, cwd, agent, systemPro
   const proc = spawn('claude', args, {
     cwd: cwd || '/workspace',
     env: SAFE_ENV,
+    stdio: ['pipe', 'pipe', 'pipe'],
   });
+
+  // Close stdin immediately — Claude CLI blocks on open stdin
+  proc.stdin.end();
 
   reply.raw.writeHead(200, {
     'Content-Type': 'text/event-stream',
