@@ -17,13 +17,14 @@ function buildSafeEnv() {
 
 const SAFE_ENV = buildSafeEnv();
 
-function buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, stream }) {
+function buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, resume, stream }) {
   if (!prompt || typeof prompt !== 'string') {
     throw new Error('prompt is required and must be a string');
   }
 
   const args = ['-p', '--output-format', stream ? 'stream-json' : 'json'];
 
+  if (resume) args.push('--resume', resume);
   if (maxTurns) args.push('--max-turns', String(maxTurns));
   if (agent) args.push('--agent', agent);
   if (systemPrompt) args.push('--system-prompt', systemPrompt);
@@ -44,9 +45,9 @@ function capStderr(current, chunk) {
   return combined.length > MAX_STDERR ? combined.slice(-MAX_STDERR) : combined;
 }
 
-function runClaude({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, model, permissionMode }) {
+function runClaude({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, model, permissionMode, resume }) {
   return new Promise((resolve, reject) => {
-    const args = buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, stream: false });
+    const args = buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, resume, stream: false });
 
     const proc = spawn('claude', args, {
       cwd: cwd || '/workspace',
@@ -78,8 +79,8 @@ function runClaude({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, m
   });
 }
 
-function runClaudeStream({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, model, permissionMode }, reply) {
-  const args = buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, stream: true });
+function runClaudeStream({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, model, permissionMode, resume }, reply) {
+  const args = buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, resume, stream: true });
 
   const proc = spawn('claude', args, {
     cwd: cwd || '/workspace',

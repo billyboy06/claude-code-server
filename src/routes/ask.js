@@ -15,7 +15,7 @@ module.exports = async function askRoutes(fastify) {
       },
     },
   }, async (request, reply) => {
-    const { prompt, allowedTools, maxTurns, cwd, stream, agent, systemPrompt, model, permissionMode } = request.body;
+    const { prompt, allowedTools, maxTurns, cwd, stream, agent, systemPrompt, model, permissionMode, resume } = request.body;
 
     // Validate cwd
     const resolvedCwd = resolveSafeCwd(cwd);
@@ -42,7 +42,7 @@ module.exports = async function askRoutes(fastify) {
       ? (Array.isArray(allowedTools) ? allowedTools : [allowedTools])
       : undefined;
 
-    const params = { prompt, allowedTools: normalizedTools, maxTurns, cwd: resolvedCwd, agent, systemPrompt, model, permissionMode };
+    const params = { prompt, allowedTools: normalizedTools, maxTurns, cwd: resolvedCwd, agent, systemPrompt, model, permissionMode, resume };
 
     // Acquire semaphore slot
     try {

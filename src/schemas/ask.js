@@ -19,6 +19,7 @@ const askSchema = {
       systemPrompt: { type: 'string', maxLength: 50000 },
       model: { type: 'string', enum: ['sonnet', 'opus', 'haiku'] },
       permissionMode: { type: 'string', enum: ['default', 'plan', 'auto', 'acceptEdits', 'dontAsk'] },
+      resume: { type: 'string', pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' },
     },
     additionalProperties: false,
   },
