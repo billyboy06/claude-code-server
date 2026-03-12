@@ -5,10 +5,16 @@ const { spawn } = require('node:child_process');
 const MAX_STDERR = 10_000; // 10KB cap
 
 function buildSafeEnv() {
-  // Inherit full environment — Claude CLI needs access to OAuth credentials
-  // stored under $HOME/.claude/ and may require env vars for auth flows.
-  // The CLI runs in a sandboxed workspace with permission controls.
-  return { ...process.env };
+  // Inherit full environment but remove vars that could interfere with Claude CLI.
+  // CLAUDECODE env var would prevent CLI from launching ("nested session" check).
+  const env = { ...process.env };
+  delete env.CLAUDECODE;
+  // Remove k8s service discovery vars that look like Claude-related config
+  for (const key of Object.keys(env)) {
+    if (key.startsWith('CLAUDE_CODE_') && key.includes('SERVICE')) delete env[key];
+    if (key.startsWith('CLAUDE_CODE_PORT')) delete env[key];
+  }
+  return env;
 }
 
 const SAFE_ENV = buildSafeEnv();
@@ -54,10 +60,17 @@ function runClaude({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, m
     let stdout = '';
     let stderr = '';
 
-    proc.stdout.on('data', (data) => { stdout += data; });
-    proc.stderr.on('data', (data) => { stderr = capStderr(stderr, data); });
+    proc.stdout.on('data', (data) => {
+      stdout += data;
+      fastify?.log?.debug?.({ chunk: data.toString().slice(0, 200) }, 'claude stdout');
+    });
+    proc.stderr.on('data', (data) => {
+      stderr = capStderr(stderr, data);
+      fastify?.log?.warn?.({ chunk: data.toString().slice(0, 500) }, 'claude stderr');
+    });
 
     proc.on('close', (code) => {
+      fastify?.log?.info?.({ code, stdoutLen: stdout.length, stderrLen: stderr.length }, 'claude process closed');
       if (code !== 0) {
         reject(new Error(`claude exited with code ${code}: ${stderr}`));
         return;
