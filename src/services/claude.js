@@ -3,6 +3,7 @@
 const { spawn } = require('node:child_process');
 
 const MAX_STDERR = 10_000; // 10KB cap
+const PROCESS_TIMEOUT = parseInt(process.env.PROCESS_TIMEOUT, 10) || 900_000; // 15 min default
 
 function buildSafeEnv() {
   // Inherit full environment but remove vars that could interfere with Claude CLI.
@@ -24,7 +25,9 @@ function buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model,
     throw new Error('prompt is required and must be a string');
   }
 
-  const args = ['-p', '--output-format', stream ? 'stream-json' : 'json', '--dangerously-skip-permissions'];
+  const args = ['-p', '--output-format', stream ? 'stream-json' : 'json'];
+  if (stream) args.push('--verbose');
+  args.push('--dangerously-skip-permissions');
 
   if (resume) args.push('--resume', resume);
   if (maxTurns) args.push('--max-turns', String(maxTurns));
@@ -55,7 +58,7 @@ function runClaude({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, m
       cwd: cwd || '/workspace',
       env: SAFE_ENV,
       stdio: ['pipe', 'pipe', 'pipe'],
-      timeout: 290_000,
+      timeout: PROCESS_TIMEOUT,
     });
 
     // Close stdin immediately — Claude CLI blocks on open stdin
