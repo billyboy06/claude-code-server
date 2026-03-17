@@ -20,6 +20,7 @@ const askSchema = {
       model: { type: 'string', enum: ['sonnet', 'opus', 'haiku'] },
       permissionMode: { type: 'string', enum: ['default', 'plan', 'auto', 'acceptEdits', 'dontAsk'] },
       resume: { type: 'string', pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' },
+      jsonSchema: { type: 'object', description: 'JSON Schema for structured output. When provided, Claude will return valid JSON matching this schema.' },
     },
     additionalProperties: false,
   },

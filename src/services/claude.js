@@ -20,10 +20,14 @@ function buildSafeEnv() {
 
 const SAFE_ENV = buildSafeEnv();
 
-function buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, resume, stream }) {
+function buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, resume, stream, jsonSchema }) {
   if (!prompt || typeof prompt !== 'string') {
     throw new Error('prompt is required and must be a string');
   }
+
+  const resolvedSystemPrompt = jsonSchema
+    ? `You MUST respond with ONLY valid JSON that matches this JSON Schema. No other text, no markdown, no explanation.\nJSON Schema: ${JSON.stringify(jsonSchema)}${systemPrompt ? `\n\n${systemPrompt}` : ''}`
+    : systemPrompt;
 
   const args = ['-p', '--output-format', stream ? 'stream-json' : 'json'];
   if (stream) args.push('--verbose');
@@ -32,7 +36,7 @@ function buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model,
   if (resume) args.push('--resume', resume);
   if (maxTurns) args.push('--max-turns', String(maxTurns));
   if (agent) args.push('--agent', agent);
-  if (systemPrompt) args.push('--system-prompt', systemPrompt);
+  if (resolvedSystemPrompt) args.push('--system-prompt', resolvedSystemPrompt);
   if (model) args.push('--model', model);
   if (permissionMode) args.push('--permission-mode', permissionMode);
 
@@ -50,9 +54,9 @@ function capStderr(current, chunk) {
   return combined.length > MAX_STDERR ? combined.slice(-MAX_STDERR) : combined;
 }
 
-function runClaude({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, model, permissionMode, resume }) {
+function runClaude({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, model, permissionMode, resume, jsonSchema }) {
   return new Promise((resolve, reject) => {
-    const args = buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, resume, stream: false });
+    const args = buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, resume, stream: false, jsonSchema });
 
     const proc = spawn('claude', args, {
       cwd: cwd || '/workspace',
@@ -88,8 +92,8 @@ function runClaude({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, m
   });
 }
 
-function runClaudeStream({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, model, permissionMode, resume }, reply) {
-  const args = buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, resume, stream: true });
+function runClaudeStream({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, model, permissionMode, resume, jsonSchema }, reply) {
+  const args = buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, resume, stream: true, jsonSchema });
 
   const proc = spawn('claude', args, {
     cwd: cwd || '/workspace',
