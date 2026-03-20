@@ -1,14 +1,19 @@
 'use strict';
 
 const { spawn } = require('node:child_process');
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
 
 const MAX_STDERR = 10_000; // 10KB cap
 const PROCESS_TIMEOUT = parseInt(process.env.PROCESS_TIMEOUT, 10) || 900_000; // 15 min default
+const WINDOWS_DIR = process.env.WINDOWS_DIR || '/tmp/claude-windows';
+const CONFIG_DIR = process.env.CONFIG_DIR || '/home/node/.claude';
 
-function buildSafeEnv() {
+function buildSafeEnv(home) {
   // Inherit full environment but remove vars that could interfere with Claude CLI.
   // CLAUDECODE env var would prevent CLI from launching ("nested session" check).
-  const env = { ...process.env };
+  const env = { ...process.env, HOME: home };
   delete env.CLAUDECODE;
   // Remove k8s service discovery vars that look like Claude-related config
   for (const key of Object.keys(env)) {
@@ -18,7 +23,32 @@ function buildSafeEnv() {
   return env;
 }
 
-const SAFE_ENV = buildSafeEnv();
+function createWindow() {
+  if (!fs.existsSync(CONFIG_DIR)) {
+    throw new Error(`CONFIG_DIR does not exist: ${CONFIG_DIR}`);
+  }
+
+  const id = crypto.randomUUID();
+  const windowHome = path.join(WINDOWS_DIR, `claude-${id}`);
+  fs.mkdirSync(windowHome, { recursive: true });
+
+  try {
+    fs.symlinkSync(CONFIG_DIR, path.join(windowHome, '.claude'));
+  } catch (err) {
+    destroyWindow(windowHome);
+    throw new Error(`Failed to create window symlink: ${err.message}`);
+  }
+
+  return windowHome;
+}
+
+function destroyWindow(windowHome) {
+  try {
+    fs.rmSync(windowHome, { recursive: true, force: true });
+  } catch {
+    // Best-effort cleanup — /tmp is cleared on container restart
+  }
+}
 
 function buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, resume, stream, jsonSchema }) {
   if (!prompt || typeof prompt !== 'string') {
@@ -55,12 +85,14 @@ function capStderr(current, chunk) {
 }
 
 function runClaude({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, model, permissionMode, resume, jsonSchema }) {
-  return new Promise((resolve, reject) => {
-    const args = buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, resume, stream: false, jsonSchema });
+  // Validate before allocating resources
+  const args = buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, resume, stream: false, jsonSchema });
+  const windowHome = createWindow();
 
+  return new Promise((resolve, reject) => {
     const proc = spawn('claude', args, {
       cwd: cwd || '/workspace',
-      env: SAFE_ENV,
+      env: buildSafeEnv(windowHome),
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: PROCESS_TIMEOUT,
     });
@@ -75,6 +107,7 @@ function runClaude({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, m
     proc.stderr.on('data', (data) => { stderr = capStderr(stderr, data); });
 
     proc.on('close', (code) => {
+      destroyWindow(windowHome);
       if (code !== 0) {
         reject(new Error(`claude exited with code ${code}: ${stderr}`));
         return;
@@ -87,17 +120,20 @@ function runClaude({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, m
     });
 
     proc.on('error', (err) => {
+      destroyWindow(windowHome);
       reject(new Error(`Failed to spawn claude: ${err.message}`));
     });
   });
 }
 
 function runClaudeStream({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, model, permissionMode, resume, jsonSchema }, reply) {
+  // Validate before allocating resources
   const args = buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, resume, stream: true, jsonSchema });
+  const windowHome = createWindow();
 
   const proc = spawn('claude', args, {
     cwd: cwd || '/workspace',
-    env: SAFE_ENV,
+    env: buildSafeEnv(windowHome),
     stdio: ['pipe', 'pipe', 'pipe'],
   });
 
@@ -112,8 +148,10 @@ function runClaudeStream({ prompt, allowedTools, maxTurns, cwd, agent, systemPro
   });
 
   let buffer = '';
+  let streamEnded = false;
 
   proc.stdout.on('data', (chunk) => {
+    if (streamEnded) return;
     buffer += chunk.toString();
     const lines = buffer.split('\n');
     buffer = lines.pop();
@@ -126,10 +164,14 @@ function runClaudeStream({ prompt, allowedTools, maxTurns, cwd, agent, systemPro
   });
 
   proc.stderr.on('data', (data) => {
+    if (streamEnded) return;
     reply.raw.write(`event: error\ndata: ${JSON.stringify({ error: data.toString().slice(0, MAX_STDERR) })}\n\n`);
   });
 
   proc.on('close', (code) => {
+    destroyWindow(windowHome);
+    if (streamEnded) return;
+    streamEnded = true;
     if (buffer.trim()) {
       reply.raw.write(`data: ${buffer.trim()}\n\n`);
     }
@@ -138,11 +180,15 @@ function runClaudeStream({ prompt, allowedTools, maxTurns, cwd, agent, systemPro
   });
 
   proc.on('error', (err) => {
+    destroyWindow(windowHome);
+    if (streamEnded) return;
+    streamEnded = true;
     reply.raw.write(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`);
     reply.raw.end();
   });
 
   reply.raw.on('close', () => {
+    streamEnded = true;
     if (!proc.killed) {
       proc.kill('SIGTERM');
     }
