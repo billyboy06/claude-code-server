@@ -9,6 +9,7 @@ const MAX_STDERR = 10_000; // 10KB cap
 const PROCESS_TIMEOUT = parseInt(process.env.PROCESS_TIMEOUT, 10) || 900_000; // 15 min default
 const WINDOWS_DIR = process.env.WINDOWS_DIR || '/tmp/claude-windows';
 const CONFIG_DIR = process.env.CONFIG_DIR || '/home/node/.claude';
+const REAL_HOME = process.env.REAL_HOME || '/home/node';
 
 function buildSafeEnv(home) {
   // Inherit full environment but remove vars that could interfere with Claude CLI.
@@ -34,9 +35,15 @@ function createWindow() {
 
   try {
     fs.symlinkSync(CONFIG_DIR, path.join(windowHome, '.claude'));
+
+    // CLI also needs $HOME/.claude.json for credentials and feature flags
+    const claudeJson = path.join(REAL_HOME, '.claude.json');
+    if (fs.existsSync(claudeJson)) {
+      fs.symlinkSync(claudeJson, path.join(windowHome, '.claude.json'));
+    }
   } catch (err) {
     destroyWindow(windowHome);
-    throw new Error(`Failed to create window symlink: ${err.message}`);
+    throw new Error(`Failed to create window symlinks: ${err.message}`);
   }
 
   return windowHome;
