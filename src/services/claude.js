@@ -36,10 +36,15 @@ function createWindow() {
   try {
     fs.symlinkSync(CONFIG_DIR, path.join(windowHome, '.claude'));
 
-    // CLI also needs $HOME/.claude.json for credentials and feature flags
-    const claudeJson = path.join(REAL_HOME, '.claude.json');
-    if (fs.existsSync(claudeJson)) {
-      fs.symlinkSync(claudeJson, path.join(windowHome, '.claude.json'));
+    // CLI also needs $HOME/.claude.json for credentials and feature flags.
+    // Look in CONFIG_DIR first (PVC-persisted), then fall back to REAL_HOME.
+    const claudeJsonPvc = path.join(CONFIG_DIR, '.claude.json');
+    const claudeJsonHome = path.join(REAL_HOME, '.claude.json');
+    const claudeJsonSource = fs.existsSync(claudeJsonPvc) ? claudeJsonPvc
+      : fs.existsSync(claudeJsonHome) ? claudeJsonHome
+      : null;
+    if (claudeJsonSource) {
+      fs.symlinkSync(claudeJsonSource, path.join(windowHome, '.claude.json'));
     }
   } catch (err) {
     destroyWindow(windowHome);
