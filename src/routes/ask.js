@@ -10,7 +10,7 @@ module.exports = async function askRoutes(fastify) {
     schema: askSchema,
     config: {
       rateLimit: {
-        max: 10,
+        max: 60,
         timeWindow: '1 minute',
       },
     },
