@@ -11,6 +11,10 @@ RUN mkdir -p /home/node/.claude/agents /home/node/.claude/skills /home/node/.cla
     /workspace \
     && chown -R node:node /home/node /workspace
 
+COPY --chown=node:node claude-config/settings.json /home/node/.claude/settings.json
+COPY --chown=node:node claude-config/hooks/pre-tool-use.sh /home/node/.claude/hooks/pre-tool-use.sh
+RUN chmod +x /home/node/.claude/hooks/pre-tool-use.sh
+
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev

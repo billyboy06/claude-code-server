@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f *)",
+      "Bash(git push --delete*)",
+      "Bash(git push * main*)",
+      "Bash(git push * master*)",
+      "Bash(git push *:main*)",
+      "Bash(git push *:master*)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~*)",
+      "Bash(kubectl delete*)",
+      "Bash(kubectl apply*)",
+      "Bash(kubectl patch*)",
+      "Bash(helm uninstall*)",
+      "Bash(helm delete*)"
+    ]
+  }
+}
