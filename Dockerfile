@@ -1,4 +1,11 @@
+FROM golang:1.25-bookworm AS go-runtime
+
 FROM node:22-slim
+
+COPY --from=go-runtime /usr/local/go /usr/local/go
+ENV PATH=$PATH:/usr/local/go/bin
+ENV GOPATH=/home/node/go
+ENV GOCACHE=/home/node/.cache/go-build
 
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates jq git \
     && rm -rf /var/lib/apt/lists/*
@@ -8,6 +15,7 @@ RUN npm install -g @anthropic-ai/claude-code
 ENV HOME=/home/node
 
 RUN mkdir -p /home/node/.claude/agents /home/node/.claude/skills /home/node/.claude/rules /home/node/.claude/hooks \
+    /home/node/go /home/node/.cache/go-build \
     /workspace \
     && chown -R node:node /home/node /workspace
 
