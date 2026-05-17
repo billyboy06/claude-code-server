@@ -76,7 +76,7 @@ function buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model,
   args.push('--dangerously-skip-permissions');
 
   if (resume) args.push('--resume', resume);
-  if (maxTurns) args.push('--max-turns', String(maxTurns));
+  args.push('--max-turns', String(maxTurns || parseInt(process.env.DEFAULT_MAX_TURNS, 10) || 500));
   if (agent) args.push('--agent', agent);
   if (resolvedSystemPrompt) args.push('--system-prompt', resolvedSystemPrompt);
   if (model) args.push('--model', model);
