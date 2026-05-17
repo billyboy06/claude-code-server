@@ -96,7 +96,9 @@ function capStderr(current, chunk) {
   return combined.length > MAX_STDERR ? combined.slice(-MAX_STDERR) : combined;
 }
 
-function runClaude({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, model, permissionMode, resume, jsonSchema }) {
+const MAX_RESUME_DEPTH = 10;
+
+function runClaude({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, model, permissionMode, resume, jsonSchema }, _resumeDepth = 0) {
   // Validate before allocating resources
   const args = buildArgs({ prompt, allowedTools, maxTurns, agent, systemPrompt, model, permissionMode, resume, stream: false, jsonSchema });
   const windowHome = createWindow();
@@ -121,6 +123,19 @@ function runClaude({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, m
     proc.on('close', (code) => {
       destroyWindow(windowHome);
       if (code !== 0) {
+        // Auto-resume when CLI hits its turn limit
+        if (_resumeDepth < MAX_RESUME_DEPTH) {
+          try {
+            const result = JSON.parse(stdout);
+            if (result.subtype === 'error_max_turns' && result.session_id) {
+              resolve(runClaude(
+                { prompt: 'continue', allowedTools, maxTurns, cwd, agent, systemPrompt, model, permissionMode, resume: result.session_id, jsonSchema },
+                _resumeDepth + 1,
+              ));
+              return;
+            }
+          } catch { /* not JSON or missing fields — fall through to error */ }
+        }
         const stdoutSnippet = stdout.slice(-2000);
         reject(new Error(`claude exited with code ${code}: ${stderr || '(no stderr)'} | stdout_tail: ${stdoutSnippet || '(empty)'}`));
         return;
