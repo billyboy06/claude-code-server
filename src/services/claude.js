@@ -121,7 +121,8 @@ function runClaude({ prompt, allowedTools, maxTurns, cwd, agent, systemPrompt, m
     proc.on('close', (code) => {
       destroyWindow(windowHome);
       if (code !== 0) {
-        reject(new Error(`claude exited with code ${code}: ${stderr}`));
+        const stdoutSnippet = stdout.slice(-2000);
+        reject(new Error(`claude exited with code ${code}: ${stderr || '(no stderr)'} | stdout_tail: ${stdoutSnippet || '(empty)'}`));
         return;
       }
       try {
